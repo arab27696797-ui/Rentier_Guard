@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // или "sqlite" для разработки
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// МОДЕЛИ МОДУЛЯ ПРОБЛЕМ
+// ============================================
+
+/**
+ * Модель чёрного списка арендаторов
+ */
+model BadTenant {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Связь с пользователем (владельцем записи)
+  userId String
+
+  // Персональные данные арендатора
+  fullName      String
+  passportData  String? // "1234 567890"
+  phoneNumber   String? // "+79001234567"
+
+  // Причина добавления
+  reason String // "non_payment" | "property_damage" | "rules_violation" | "fraud" | "other"
+
+  // Описание ситуации
+  description String @db.Text
+
+  // Даты договора
+  contractDate     String? // "DD.MM.YYYY"
+  contractEndDate  String? // "DD.MM.YYYY"
+
+  // Финансовая информация
+  debtAmount Float?
+
+  // Индексы для быстрого поиска
+  @@index([userId])
+  @@index([userId, fullName])
+  @@index([reason])
+  @@map("bad_tenants")
+}
+
+// ============================================
+// ДОПОЛНИТЕЛЬНЫЕ МОДЕЛИ (примеры)
+// ============================================
+
+/**
+ * Модель пользователя бота
+ */
+model User {
+  id        String   @id @default(uuid())
+  telegramId String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Профиль
+  firstName  String?
+  lastName   String?
+  username   String?
+  phoneNumber String?
+
+  // Настройки
+  settings Json? @default("{}")
+
+  // Связи
+  badTenants BadTenant[]
+
+  @@map("users")
+}
+
+/**
+ * Модель истории проблем (опционально)
+ */
+model ProblemHistory {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  
+  // Тип проблемы
+  type String // "non_payment" | "damage" | "eviction" | "other"
+  
+  // Данные проблемы (JSON)
+  data Json
+  
+  // Сгенерированная претензия
+  claimText String? @db.Text
+  
+  // Статус
+  status String @default("active") // "active" | "resolved" | "in_court"
+
+  @@index([userId])
+  @@index([userId, status])
+  @@map("problem_history")
+}

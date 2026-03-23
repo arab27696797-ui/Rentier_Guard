@@ -1,0 +1,91 @@
+// ============================================
+// СХЕМА PRISMA ДЛЯ МОДУЛЯ ЭКСПЕРТОВ
+// RentierGuard Bot
+// ============================================
+
+// Добавьте эту модель в ваш основной schema.prisma файл
+
+model ExpertRequest {
+  /// Уникальный идентификатор запроса (UUID)
+  id        String   @id @default(uuid())
+  
+  /// ID пользователя Telegram
+  userId    Int      @map("user_id")
+  
+  /// Username пользователя (опционально)
+  username  String?  @map("username")
+  
+  /// Имя пользователя
+  firstName String?  @map("first_name") @db.VarChar(64)
+  
+  /// Фамилия пользователя
+  lastName  String?  @map("last_name") @db.VarChar(64)
+  
+  /// Тип эксперта: lawyer | tax | accountant
+  expertType String  @map("expert_type") @db.VarChar(20)
+  
+  /// Описание вопроса
+  description String @db.Text
+  
+  /// Дополнительные детали (опционально)
+  details   String?  @db.Text
+  
+  /// Статус запроса: pending | in_progress | waiting_info | completed | cancelled
+  status    String   @default("pending") @db.VarChar(20)
+  
+  /// Приоритет: low | medium | high | urgent
+  priority  String   @default("medium") @db.VarChar(10)
+  
+  /// Флаг бесплатной консультации
+  isFree    Boolean  @default(true) @map("is_free")
+  
+  /// Дата создания
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Дата последнего обновления
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  /// Дата завершения (заполняется при статусе completed)
+  completedAt DateTime? @map("completed_at")
+  
+  /// ID эксперта, назначенного на запрос (Telegram ID)
+  assignedExpertId Int? @map("assigned_expert_id")
+  
+  /// Комментарий эксперта
+  expertComment String? @map("expert_comment") @db.Text
+
+  // ============================================
+  // ИНДЕКСЫ
+  // ============================================
+  
+  @@index([userId])
+  @@index([status])
+  @@index([expertType])
+  @@index([createdAt])
+  @@index([isFree, createdAt])
+  @@index([userId, isFree, createdAt])
+  
+  @@map("expert_requests")
+}
+
+// ============================================
+// ENUM ЗНАЧЕНИЯ (для справки)
+// ============================================
+// 
+// expert_type:
+//   - lawyer       (Юрист)
+//   - tax          (Налоговый консультант)
+//   - accountant   (Бухгалтер)
+//
+// status:
+//   - pending      (Ожидает обработки)
+//   - in_progress  (В работе)
+//   - waiting_info (Ожидает информации)
+//   - completed    (Завершён)
+//   - cancelled    (Отменён)
+//
+// priority:
+//   - low          (Низкий)
+//   - medium       (Средний)
+//   - high         (Высокий)
+//   - urgent       (Срочный)
