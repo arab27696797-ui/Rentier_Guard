@@ -23,9 +23,33 @@ import { taxScenes } from './modules/tax';
 import { contractScenes } from './modules/contract';
 import { propertyScenes } from './modules/property';
 import { paymentScenes } from './modules/payment';
-import { rosreestrScenes } from './modules/rosreestr';
 import { problemScenesArray } from './modules/problem';
-import { expertRequestScene } from './modules/expert';
+
+// Отдельные сцены из модулей без массива
+let rosreestrScenes: any[] = [];
+try {
+  const rc = require('./modules/rosreestr/scenes/rosreestrChecklist.scene');
+  const fm = require('./modules/rosreestr/scenes/findMFC.scene');
+  rosreestrScenes = [rc.default || rc.rosreestrChecklistScene, fm.default || fm.findMFCScene];
+} catch (e) {
+  console.warn('Rosreestr scenes not loaded:', e);
+}
+
+let expertScenes: any[] = [];
+try {
+  const es = require('./modules/expert/scenes/expertRequest.scene');
+  expertScenes = [es.default || es.expertRequestScene];
+} catch (e) {
+  console.warn('Expert scenes not loaded:', e);
+}
+
+let documentScenes: any[] = [];
+try {
+  const ds = require('./modules/document/scenes/exportYear.scene');
+  documentScenes = [ds.default || ds.exportYearScene];
+} catch (e) {
+  console.warn('Document scenes not loaded:', e);
+}
 
 // Services
 import { findOrCreateUser } from './core/services/user.service';
@@ -50,8 +74,9 @@ const allScenes: any[] = [
   ...paymentScenes,
   ...rosreestrScenes,
   ...problemScenesArray,
-  expertRequestScene,
-];
+  ...expertScenes,
+  ...documentScenes,
+].filter(Boolean);
 
 // Initialize stage with all scenes
 const stage = new Scenes.Stage(allScenes);
