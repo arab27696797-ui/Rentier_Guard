@@ -10,7 +10,6 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "jest",
-    "test:watch": "jest --watch",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -18,19 +17,7 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
-  "keywords": [
-    "telegram",
-    "bot",
-    "rent",
-    "real-estate",
-    "landlord",
-    "self-employed",
-    "tax",
-    "contracts",
-    "росреестр",
-    "самозанятый",
-    "рантье"
-  ],
+  "keywords": ["telegram", "bot", "rent", "real-estate"],
   "author": "RentierGuard Team",
   "license": "MIT",
   "dependencies": {
@@ -39,15 +26,16 @@
     "docx-templates": "^4.11.0",
     "dotenv": "^16.3.1",
     "node-cron": "^3.0.3",
+    "pg": "^8.12.0",
     "pino": "^8.16.2",
     "pino-pretty": "^10.2.3",
-    "puppeteer": "^21.5.0",
     "telegraf": "^4.15.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.9.0",
     "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.10.9",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",
     "eslint": "^8.54.0",
