@@ -4,7 +4,7 @@
  */
 
 import type { Telegraf } from 'telegraf';
-import type { BotContext } from '@types/index';
+import type { BotContext } from '../../../types/index';
 import { TAX_REPORT_MESSAGES } from '../templates/messages';
 import { TaxRegime } from '../types';
 
