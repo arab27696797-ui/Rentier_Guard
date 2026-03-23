@@ -89,7 +89,7 @@ export {
 // ============================================================================
 
 import type { Telegraf, Scenes } from 'telegraf';
-import type { BotContext } from '@types/index';
+import type { BotContext } from '../../types/index';
 import { taxCalcScene } from './scenes/taxCalc.scene';
 import { becomeSelfEmployedScene } from './scenes/becomeSelfemployed.scene';
 import { taxReportScene } from './scenes/taxReport.scene';
