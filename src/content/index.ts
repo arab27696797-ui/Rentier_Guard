@@ -1,27 +1,4 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
- * RentierGuard Bot - Контент
- * ═══════════════════════════════════════════════════════════════════════════════
- * 
- * Экспорт всего контента бота.
- * 
- * @author RentierGuard Team
- * @version 1.0.0
- */
-
-export {
-  BotCommand,
-  CommandCategory,
-  UserRole,
-  COMMANDS,
-  getCommandsByCategory,
-  getCommandsForRole,
-  getCommand,
-  isCommandAvailable,
-  getCommandsByCategories,
-  getCommandHelp,
-  getDetailedCommandHelp,
-} from './commands';
+export { COMMANDS, getCommandHelp, BOTFATHER_COMMANDS } from './commands';
 
 export {
   getWelcomeMessage,
