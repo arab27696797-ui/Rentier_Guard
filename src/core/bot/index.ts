@@ -7,5 +7,4 @@ export {
   createBot,
   launchBot,
   setupGracefulShutdown,
-  bot,
 } from './bot';
