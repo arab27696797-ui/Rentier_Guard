@@ -5,7 +5,7 @@
 
 import { Scenes, Markup } from 'telegraf';
 import { z } from 'zod';
-import type { BotContext } from '@types/index';
+import type { BotContext } from '../../../types/index';
 import {
   TAX_WELCOME_MESSAGES,
   TAX_PROMPTS,
