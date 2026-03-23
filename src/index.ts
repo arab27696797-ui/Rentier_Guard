@@ -4,7 +4,6 @@
  */
 
 import { Telegraf, Scenes, session } from 'telegraf';
-import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 
@@ -13,25 +12,23 @@ dotenv.config();
 
 // Core imports
 import { logger } from './core/utils/logger';
-import { authMiddleware } from './core/middleware/auth.middleware';
-import { errorMiddleware } from './core/middleware/error.middleware';
 import { prisma } from './core/services/prisma.service';
 
 // Content imports
-import { WELCOME_MESSAGES, MAIN_MENU, ERROR_MESSAGES } from './content/messages';
+import { getWelcomeMessage, getMainMenuKeyboard } from './content/messages';
 import { COMMANDS } from './content/commands';
 
-// Module imports
-import { taxScenes, initTaxReminders } from './modules/tax';
+// Module imports — scenes
+import { taxScenes } from './modules/tax';
 import { contractScenes } from './modules/contract';
 import { propertyScenes } from './modules/property';
-import { paymentScenes, initPaymentReminders } from './modules/payment';
-import { documentScenes } from './modules/document';
+import { paymentScenes } from './modules/payment';
 import { rosreestrScenes } from './modules/rosreestr';
-import { problemScenes } from './modules/problem';
-import { expertScenes } from './modules/expert';
+import { problemScenesArray } from './modules/problem';
+import { expertRequestScene } from './modules/expert';
+
+// Services
 import { findOrCreateUser } from './core/services/user.service';
-import { createMainMenu } from './core/utils/keyboard.utils';
 
 // Check required environment variables
 const requiredEnvVars = ['BOT_TOKEN', 'DATABASE_URL'];
@@ -45,31 +42,23 @@ for (const envVar of requiredEnvVars) {
 // Initialize bot
 const bot = new Telegraf(process.env.BOT_TOKEN!);
 
-// Initialize stage with all scenes
-const stage = new Scenes.Stage([
-  // Tax scenes
+// Collect all scenes
+const allScenes: any[] = [
   ...taxScenes,
-  // Contract scenes
   ...contractScenes,
-  // Property scenes
   ...propertyScenes,
-  // Payment scenes
   ...paymentScenes,
-  // Document scenes
-  ...documentScenes,
-  // Rosreestr scenes
   ...rosreestrScenes,
-  // Problem scenes
-  ...problemScenes,
-  // Expert scenes
-  ...expertScenes,
-]);
+  ...problemScenesArray,
+  expertRequestScene,
+];
+
+// Initialize stage with all scenes
+const stage = new Scenes.Stage(allScenes);
 
 // Middleware
 bot.use(session());
 bot.use(stage.middleware());
-bot.use(authMiddleware);
-bot.use(errorMiddleware);
 
 // ==================== COMMANDS ====================
 
@@ -78,85 +67,80 @@ bot.command('start', async (ctx) => {
   try {
     const telegramUser = ctx.from;
     if (!telegramUser) {
-      return ctx.reply(ERROR_MESSAGES.GENERIC_ERROR);
+      return ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
     }
 
     // Find or create user in database
     const user = await findOrCreateUser({
-      telegramId: BigInt(telegramUser.id),
+      id: telegramUser.id,
+      first_name: telegramUser.first_name,
+      last_name: telegramUser.last_name,
       username: telegramUser.username,
-      firstName: telegramUser.first_name,
-      lastName: telegramUser.last_name,
+      language_code: telegramUser.language_code,
+      is_premium: (telegramUser as any).is_premium,
     });
 
     logger.info(`User started bot: ${telegramUser.id} (${telegramUser.username || 'no username'})`);
 
-    const welcomeMessage = WELCOME_MESSAGES.NEW_USER
-      .replace('{firstName}', user.firstName || 'Рантье');
+    const welcomeMessage = getWelcomeMessage(user.firstName || 'Рантье');
 
     await ctx.reply(welcomeMessage, {
       parse_mode: 'HTML',
-      reply_markup: createMainMenu(),
+      reply_markup: getMainMenuKeyboard(),
     });
   } catch (error) {
     logger.error('Error in /start command:', error);
-    await ctx.reply(ERROR_MESSAGES.GENERIC_ERROR);
+    await ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
   }
 });
 
 // /menu - Main menu
 bot.command('menu', async (ctx) => {
-  await ctx.reply(MAIN_MENU.TITLE, {
+  await ctx.reply('📋 <b>Главное меню RentierGuard</b>\n\nВыберите раздел:', {
     parse_mode: 'HTML',
-    reply_markup: createMainMenu(),
+    reply_markup: getMainMenuKeyboard(),
   });
 });
 
-// ==================== TAX MODULE COMMANDS ====================
+// ==================== MODULE COMMANDS ====================
 
+// Tax
 bot.command('tax_calc', (ctx) => ctx.scene.enter('tax_calc'));
 bot.command('become_selfemployed', (ctx) => ctx.scene.enter('become_selfemployed'));
 bot.command('tax_report', (ctx) => ctx.scene.enter('tax_report'));
 
-// ==================== CONTRACT MODULE COMMANDS ====================
-
+// Contracts
 bot.command('create_contract', (ctx) => ctx.scene.enter('create_contract'));
 bot.command('create_act', (ctx) => ctx.scene.enter('create_act'));
 bot.command('create_addendum', (ctx) => ctx.scene.enter('create_addendum'));
 
-// ==================== PROPERTY MODULE COMMANDS ====================
-
+// Properties
 bot.command('add_property', (ctx) => ctx.scene.enter('add_property'));
 bot.command('my_properties', (ctx) => ctx.scene.enter('my_properties'));
 
-// ==================== PAYMENT MODULE COMMANDS ====================
-
+// Payments
 bot.command('add_payment', (ctx) => ctx.scene.enter('add_payment'));
 bot.command('payment_schedule', (ctx) => ctx.scene.enter('payment_schedule'));
 
-// ==================== ROSREESTR MODULE COMMANDS ====================
-
+// Rosreestr
 bot.command('rosreestr_checklist', (ctx) => ctx.scene.enter('rosreestr_checklist'));
 bot.command('find_mfc', (ctx) => ctx.scene.enter('find_mfc'));
 
-// ==================== PROBLEM MODULE COMMANDS ====================
-
+// Problems
 bot.command('problem', (ctx) => ctx.scene.enter('problem'));
 bot.command('bad_tenant', (ctx) => ctx.scene.enter('bad_tenant'));
 
-// ==================== EXPERT MODULE COMMANDS ====================
+// Expert
+bot.command('expert', (ctx) => ctx.scene.enter('expert_request_scene'));
 
-bot.command('expert', (ctx) => ctx.scene.enter('expert'));
-
-// ==================== DOCUMENT MODULE COMMANDS ====================
-
+// Documents
 bot.command('export_year', (ctx) => ctx.scene.enter('export_year'));
 
-// ==================== HELP & INFO COMMANDS ====================
+// ==================== HELP & INFO ====================
 
 bot.command('help', async (ctx) => {
   let helpText = '<b>📚 Справка по командам RentierGuard</b>\n\n';
-  
+
   Object.entries(COMMANDS).forEach(([category, commands]) => {
     helpText += `<b>${category}:</b>\n`;
     Object.entries(commands).forEach(([command, description]) => {
@@ -175,18 +159,17 @@ bot.command('about', async (ctx) => {
 <b>🏠 RentierGuard</b> — Годовой комплекс сопровождения рантье
 
 <b>Возможности:</b>
-• Налоговый калькулятор (сравнение режимов)
-• Регистрация самозанятого (пошаговая инструкция)
-• Генерация договоров аренды
-• Учет объектов и платежей
-• Чек-листы для Росреестра
-• Решение проблем с арендаторами
-• Консультации экспертов
+- Налоговый калькулятор (сравнение режимов)
+- Регистрация самозанятого (пошаговая инструкция)
+- Генерация договоров аренды
+- Учет объектов и платежей
+- Чек-листы для Росреестра
+- Решение проблем с арендаторами
+- Консультации экспертов
 
 <b>Версия:</b> 1.0.0
-<b>Дата обновления:</b> Март 2025
 
-<i>Информация актуальна на март 2025. 
+<i>Информация актуальна на март 2025.
 Проверяйте изменения на nalog.gov.ru и rosreestr.gov.ru</i>
   `;
 
@@ -197,68 +180,56 @@ bot.command('about', async (ctx) => {
 
 bot.action('menu_main', async (ctx) => {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(MAIN_MENU.TITLE, {
+  await ctx.editMessageText('📋 <b>Главное меню RentierGuard</b>\n\nВыберите раздел:', {
     parse_mode: 'HTML',
-    reply_markup: createMainMenu(),
+    reply_markup: getMainMenuKeyboard(),
   });
 });
 
-bot.action('menu_tax', async (ctx) => {
+bot.action('menu_taxes', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.scene.enter('tax_calc');
 });
 
-bot.action('menu_contract', async (ctx) => {
+bot.action('menu_contracts', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.scene.enter('create_contract');
 });
 
-bot.action('menu_property', async (ctx) => {
+bot.action('menu_properties', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.scene.enter('my_properties');
 });
 
-bot.action('menu_payment', async (ctx) => {
+bot.action('menu_payments', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.scene.enter('payment_schedule');
 });
 
-bot.action('menu_rosreestr', async (ctx) => {
+bot.action('menu_tools', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.scene.enter('rosreestr_checklist');
 });
 
-bot.action('menu_problem', async (ctx) => {
+bot.action('menu_support', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.scene.enter('problem');
 });
 
-bot.action('menu_expert', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('expert');
-});
-
 // ==================== ERROR HANDLING ====================
 
-bot.catch((err, ctx) => {
+bot.catch((err: any, ctx: any) => {
   logger.error(`Error for ${ctx.updateType}:`, err);
-  ctx.reply(ERROR_MESSAGES.GENERIC_ERROR);
+  ctx.reply('❌ Произошла ошибка. Попробуйте позже.').catch(() => {});
 });
 
 // ==================== CRON JOBS ====================
 
-// Initialize cron jobs
 function initCronJobs() {
-  // Tax reminders - every day at 9:00
-  cron.schedule('0 9 * * *', () => {
-    logger.info('Running tax reminders check...');
-    initTaxReminders(bot);
-  });
-
   // Payment reminders - every 6 hours
   cron.schedule('0 */6 * * *', () => {
     logger.info('Running payment reminders check...');
-    initPaymentReminders(bot);
+    // TODO: Implement payment reminders with Prisma
   });
 
   // Contract expiration check - every day at 10:00
@@ -277,6 +248,17 @@ async function startBot() {
     // Check database connection
     await prisma.$connect();
     logger.info('Database connected successfully');
+
+    // Run migrations in production
+    if (process.env.NODE_ENV === 'production') {
+      const { execSync } = require('child_process');
+      try {
+        execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+        logger.info('Database migrations applied');
+      } catch (migrationError) {
+        logger.warn('Migration warning (may be first run):', migrationError);
+      }
+    }
 
     // Launch bot
     await bot.launch();
