@@ -1,25 +1,24 @@
 /**
  * Re-export logger for backward compatibility
+ * Файлы в src/core/services/ и src/core/utils/ импортируют '../logger'
  */
 export { logger, createModuleLogger, createUserLogger } from './utils/logger';
 export type { Logger } from './utils/logger';
 ```
 
+Без этого файла 5 файлов (`prisma.service.ts`, `user.service.ts`, `format.utils.ts`, `validation.utils.ts`, `date.utils.ts`) не найдут логгер.
+
 ---
 
-## Слой `src/services/` — использует `pg` (не установлен)
+## 2. Обновить `package.json`
 
-Эти 6 файлов (`src/services/*.ts`) + `src/commands/index.ts` + `src/cron/index.ts` — это альтернативный слой на чистом `pg`, который **не используется** из `src/index.ts`. Но `tsc` всё равно попытается их скомпилировать и упадёт, потому что `pg` не в зависимостях.
+Добавь `pg` и `@types/pg`, потому что слой `src/services/` и `src/cron/` их импортируют:
 
-Самое простое решение — исключить их из компиляции. Но проще **добавить `pg` как dev-зависимость для типов**.
-
-### Правка: `package.json`
-
-В секцию `devDependencies` добавь:
+**Путь на GitHub:** `package.json` — в `dependencies` добавь строку:
 ```
-"@types/pg": "^8.10.9"
+"pg": "^8.12.0",
 ```
 
-А в секцию `dependencies` добавь:
+В `devDependencies` добавь строку:
 ```
-"pg": "^8.12.0"
+"@types/pg": "^8.10.9",
