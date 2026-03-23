@@ -1,0 +1,63 @@
+{
+  "name": "rentierguard-bot",
+  "version": "1.0.0",
+  "description": "Годовой комплекс сопровождения рантье - Telegram бот для арендодателей",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "rent",
+    "real-estate",
+    "landlord",
+    "self-employed",
+    "tax",
+    "contracts",
+    "росреестр",
+    "самозанятый",
+    "рантье"
+  ],
+  "author": "RentierGuard Team",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.6.0",
+    "date-fns": "^2.30.0",
+    "docx-templates": "^4.11.0",
+    "dotenv": "^16.3.1",
+    "node-cron": "^3.0.3",
+    "pino": "^8.16.2",
+    "pino-pretty": "^10.2.3",
+    "puppeteer": "^21.5.0",
+    "telegraf": "^4.15.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "prisma": "^5.6.0",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
