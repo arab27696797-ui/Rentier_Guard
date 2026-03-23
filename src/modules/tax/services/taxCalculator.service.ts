@@ -27,9 +27,9 @@ import {
   USN_INCOME_LIMIT,
   PATENT_INCOME_LIMIT,
 } from '../types';
-import type { ServiceResult } from '@types/index';
-import { ErrorCode, AppError } from '@types/index';
-import { createModuleLogger } from '@core/utils/logger';
+import type { ServiceResult } from '../../../types/index';
+import { ErrorCode, AppError } from '../../../types/index';
+import { createModuleLogger } from '../../../core/utils/logger';
 import { v4 as uuidv4 } from 'crypto';
 
 // ============================================================================
