@@ -3,47 +3,72 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql" // или "sqlite" для разработки
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 // ============================================
-// МОДЕЛИ МОДУЛЯ ПРОБЛЕМ
+// ПОЛЬЗОВАТЕЛИ
 // ============================================
 
-/**
- * Модель чёрного списка арендаторов
- */
+model User {
+  id        String   @id @default(uuid())
+  telegramId String  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Профиль
+  firstName    String?
+  lastName     String?
+  username     String?
+  phoneNumber  String?
+  email        String?
+  languageCode String?
+
+  // Статус
+  isPremium  Boolean @default(false)
+  isBanned   Boolean @default(false)
+  bannedAt   DateTime?
+
+  // Настройки
+  notificationEnabled Boolean @default(true)
+  settings Json? @default("{}")
+
+  // Связи
+  badTenants     BadTenant[]
+  problemHistory ProblemHistory[]
+
+  @@map("users")
+}
+
+// ============================================
+// ЧЁРНЫЙ СПИСОК АРЕНДАТОРОВ
+// ============================================
+
 model BadTenant {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Связь с пользователем (владельцем записи)
   userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Персональные данные арендатора
   fullName      String
-  passportData  String? // "1234 567890"
-  phoneNumber   String? // "+79001234567"
+  passportData  String?
+  phoneNumber   String?
 
-  // Причина добавления
-  reason String // "non_payment" | "property_damage" | "rules_violation" | "fraud" | "other"
-
-  // Описание ситуации
+  reason      String
   description String @db.Text
 
-  // Даты договора
-  contractDate     String? // "DD.MM.YYYY"
-  contractEndDate  String? // "DD.MM.YYYY"
+  contractDate    String?
+  contractEndDate String?
 
-  // Финансовая информация
   debtAmount Float?
 
-  // Индексы для быстрого поиска
   @@index([userId])
   @@index([userId, fullName])
   @@index([reason])
@@ -51,53 +76,20 @@ model BadTenant {
 }
 
 // ============================================
-// ДОПОЛНИТЕЛЬНЫЕ МОДЕЛИ (примеры)
+// ИСТОРИЯ ПРОБЛЕМ
 // ============================================
 
-/**
- * Модель пользователя бота
- */
-model User {
-  id        String   @id @default(uuid())
-  telegramId String @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Профиль
-  firstName  String?
-  lastName   String?
-  username   String?
-  phoneNumber String?
-
-  // Настройки
-  settings Json? @default("{}")
-
-  // Связи
-  badTenants BadTenant[]
-
-  @@map("users")
-}
-
-/**
- * Модель истории проблем (опционально)
- */
 model ProblemHistory {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
 
   userId String
-  
-  // Тип проблемы
-  type String // "non_payment" | "damage" | "eviction" | "other"
-  
-  // Данные проблемы (JSON)
-  data Json
-  
-  // Сгенерированная претензия
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   String
+  data   Json
   claimText String? @db.Text
-  
-  // Статус
-  status String @default("active") // "active" | "resolved" | "in_court"
+  status    String  @default("active")
 
   @@index([userId])
   @@index([userId, status])
