@@ -1,317 +1,235 @@
 /**
- * RentierGuard Bot - Main Entry Point
- * Годовой комплекс сопровождения рантье
+ * RentierGuard Bot - Minimal Stable Entry Point
+ * Временное минимальное ядро для успешной сборки и деплоя
  */
 
-import { Telegraf, Scenes, session } from 'telegraf';
+import { Telegraf } from 'telegraf';
 import dotenv from 'dotenv';
-import cron from 'node-cron';
 
-// Load environment variables
 dotenv.config();
 
-// Core imports
 import { logger } from './core/utils/logger';
 import { prisma } from './core/services/prisma.service';
-
-// Content imports
-import { getWelcomeMessage, getMainMenuKeyboard } from './content/messages';
-import { COMMANDS } from './content/commands';
-
-// Module imports — scenes
-import { taxScenes } from './modules/tax';
-import { contractScenes } from './modules/contract';
-import { propertyScenes } from './modules/property';
-import { paymentScenes } from './modules/payment';
-import { problemScenesArray } from './modules/problem';
-
-// Отдельные сцены из модулей без массива
-let rosreestrScenes: any[] = [];
-try {
-  const rc = require('./modules/rosreestr/scenes/rosreestrChecklist.scene');
-  const fm = require('./modules/rosreestr/scenes/findMFC.scene');
-  rosreestrScenes = [rc.default || rc.rosreestrChecklistScene, fm.default || fm.findMFCScene];
-} catch (e) {
-  console.warn('Rosreestr scenes not loaded:', e);
-}
-
-let expertScenes: any[] = [];
-try {
-  const es = require('./modules/expert/scenes/expertRequest.scene');
-  expertScenes = [es.default || es.expertRequestScene];
-} catch (e) {
-  console.warn('Expert scenes not loaded:', e);
-}
-
-let documentScenes: any[] = [];
-try {
-  const ds = require('./modules/document/scenes/exportYear.scene');
-  documentScenes = [ds.default || ds.exportYearScene];
-} catch (e) {
-  console.warn('Document scenes not loaded:', e);
-}
-
-// Services
 import { findOrCreateUser } from './core/services/user.service';
 
-// Check required environment variables
-const requiredEnvVars = ['BOT_TOKEN', 'DATABASE_URL'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    logger.error(`Missing required environment variable: ${envVar}`);
-    process.exit(1);
-  }
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!BOT_TOKEN) {
+  logger.error('Missing required environment variable: BOT_TOKEN');
+  process.exit(1);
 }
 
-// Initialize bot
-const bot = new Telegraf(process.env.BOT_TOKEN!);
+if (!DATABASE_URL) {
+  logger.error('Missing required environment variable: DATABASE_URL');
+  process.exit(1);
+}
 
-// Collect all scenes
-const allScenes: any[] = [
-  ...taxScenes,
-  ...contractScenes,
-  ...propertyScenes,
-  ...paymentScenes,
-  ...rosreestrScenes,
-  ...problemScenesArray,
-  ...expertScenes,
-  ...documentScenes,
-].filter(Boolean);
+const bot = new Telegraf(BOT_TOKEN);
 
-// Initialize stage with all scenes
-const stage = new Scenes.Stage(allScenes);
+function getMainMenuText(firstName?: string | null): string {
+  const safeName = firstName?.trim() ? firstName.trim() : 'Рантье';
 
-// Middleware
-bot.use(session());
-bot.use(stage.middleware());
+  return [
+    `🏠 <b>RentierGuard</b>`,
+    '',
+    `Здравствуйте, <b>${safeName}</b>.`,
+    '',
+    'Сейчас запущено минимальное стабильное ядро бота.',
+    '',
+    '<b>Доступные команды:</b>',
+    '/start — регистрация и приветствие',
+    '/menu — главное меню',
+    '/help — справка',
+    '/about — о боте',
+    '/ping — проверка работы',
+    '/status — статус системы',
+  ].join('\n');
+}
 
-// ==================== COMMANDS ====================
+function getHelpText(): string {
+  return [
+    '📚 <b>Справка RentierGuard</b>',
+    '',
+    '/start — зарегистрировать пользователя и открыть приветствие',
+    '/menu — показать главное меню',
+    '/help — показать эту справку',
+    '/about — информация о боте',
+    '/ping — быстрая проверка ответа бота',
+    '/status — состояние бота и базы данных',
+  ].join('\n');
+}
 
-// /start - Welcome and registration
+function getAboutText(): string {
+  return [
+    '🏠 <b>RentierGuard</b>',
+    '',
+    'Бот для арендодателей: учёт, уведомления, документы и автоматизация.',
+    '',
+    '<b>Текущий режим:</b> минимальное стабильное ядро',
+    '<b>Версия:</b> 1.0.0',
+    '',
+    'Следующий этап — поочередно возвращать модули после приведения Prisma и типизации к одному формату.',
+  ].join('\n');
+}
+
 bot.command('start', async (ctx) => {
   try {
     const telegramUser = ctx.from;
+
     if (!telegramUser) {
-      return ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
+      await ctx.reply('❌ Не удалось определить пользователя.');
+      return;
     }
 
-    // Find or create user in database
     const user = await findOrCreateUser({
       id: telegramUser.id,
       first_name: telegramUser.first_name,
       last_name: telegramUser.last_name,
       username: telegramUser.username,
       language_code: telegramUser.language_code,
-      is_premium: (telegramUser as any).is_premium,
+      is_premium: (telegramUser as { is_premium?: boolean }).is_premium,
     });
 
-    logger.info(`User started bot: ${telegramUser.id} (${telegramUser.username || 'no username'})`);
+    logger.info(
+      {
+        telegramId: telegramUser.id,
+        username: telegramUser.username ?? null,
+      },
+      'User started bot'
+    );
 
-    const welcomeMessage = getWelcomeMessage(user.firstName || 'Рантье');
-
-    await ctx.reply(welcomeMessage, {
+    await ctx.reply(getMainMenuText(user.firstName), {
       parse_mode: 'HTML',
-      reply_markup: getMainMenuKeyboard(),
     });
   } catch (error) {
-    logger.error('Error in /start command:', error);
-    await ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
+    logger.error({ error }, 'Error in /start command');
+    await ctx.reply('❌ Произошла ошибка при запуске. Попробуйте позже.');
   }
 });
 
-// /menu - Main menu
 bot.command('menu', async (ctx) => {
-  await ctx.reply('📋 <b>Главное меню RentierGuard</b>\n\nВыберите раздел:', {
-    parse_mode: 'HTML',
-    reply_markup: getMainMenuKeyboard(),
-  });
+  try {
+    await ctx.reply(getMainMenuText(ctx.from?.first_name), {
+      parse_mode: 'HTML',
+    });
+  } catch (error) {
+    logger.error({ error }, 'Error in /menu command');
+    await ctx.reply('❌ Не удалось открыть меню.');
+  }
 });
 
-// ==================== MODULE COMMANDS ====================
-
-// Tax
-bot.command('tax_calc', (ctx) => ctx.scene.enter('tax_calc'));
-bot.command('become_selfemployed', (ctx) => ctx.scene.enter('become_selfemployed'));
-bot.command('tax_report', (ctx) => ctx.scene.enter('tax_report'));
-
-// Contracts
-bot.command('create_contract', (ctx) => ctx.scene.enter('create_contract'));
-bot.command('create_act', (ctx) => ctx.scene.enter('create_act'));
-bot.command('create_addendum', (ctx) => ctx.scene.enter('create_addendum'));
-
-// Properties
-bot.command('add_property', (ctx) => ctx.scene.enter('add_property'));
-bot.command('my_properties', (ctx) => ctx.scene.enter('my_properties'));
-
-// Payments
-bot.command('add_payment', (ctx) => ctx.scene.enter('add_payment'));
-bot.command('payment_schedule', (ctx) => ctx.scene.enter('payment_schedule'));
-
-// Rosreestr
-bot.command('rosreestr_checklist', (ctx) => ctx.scene.enter('rosreestr_checklist'));
-bot.command('find_mfc', (ctx) => ctx.scene.enter('find_mfc'));
-
-// Problems
-bot.command('problem', (ctx) => ctx.scene.enter('problem'));
-bot.command('bad_tenant', (ctx) => ctx.scene.enter('bad_tenant'));
-
-// Expert
-bot.command('expert', (ctx) => ctx.scene.enter('expert_request_scene'));
-
-// Documents
-bot.command('export_year', (ctx) => ctx.scene.enter('export_year'));
-
-// ==================== HELP & INFO ====================
-
 bot.command('help', async (ctx) => {
-  let helpText = '<b>📚 Справка по командам RentierGuard</b>\n\n';
-
-  Object.entries(COMMANDS).forEach(([category, commands]) => {
-    helpText += `<b>${category}:</b>\n`;
-    Object.entries(commands).forEach(([command, description]) => {
-      helpText += `  /${command} — ${description}\n`;
+  try {
+    await ctx.reply(getHelpText(), {
+      parse_mode: 'HTML',
     });
-    helpText += '\n';
-  });
-
-  helpText += '\n<i>💡 Нажмите /menu для открытия главного меню</i>';
-
-  await ctx.reply(helpText, { parse_mode: 'HTML' });
+  } catch (error) {
+    logger.error({ error }, 'Error in /help command');
+    await ctx.reply('❌ Не удалось показать справку.');
+  }
 });
 
 bot.command('about', async (ctx) => {
-  const aboutText = `
-<b>🏠 RentierGuard</b> — Годовой комплекс сопровождения рантье
-
-<b>Возможности:</b>
-- Налоговый калькулятор (сравнение режимов)
-- Регистрация самозанятого (пошаговая инструкция)
-- Генерация договоров аренды
-- Учет объектов и платежей
-- Чек-листы для Росреестра
-- Решение проблем с арендаторами
-- Консультации экспертов
-
-<b>Версия:</b> 1.0.0
-
-<i>Информация актуальна на март 2025.
-Проверяйте изменения на nalog.gov.ru и rosreestr.gov.ru</i>
-  `;
-
-  await ctx.reply(aboutText, { parse_mode: 'HTML' });
-});
-
-// ==================== CALLBACK HANDLERS ====================
-
-bot.action('menu_main', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText('📋 <b>Главное меню RentierGuard</b>\n\nВыберите раздел:', {
-    parse_mode: 'HTML',
-    reply_markup: getMainMenuKeyboard(),
-  });
-});
-
-bot.action('menu_taxes', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('tax_calc');
-});
-
-bot.action('menu_contracts', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('create_contract');
-});
-
-bot.action('menu_properties', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('my_properties');
-});
-
-bot.action('menu_payments', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('payment_schedule');
-});
-
-bot.action('menu_tools', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('rosreestr_checklist');
-});
-
-bot.action('menu_support', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter('problem');
-});
-
-// ==================== ERROR HANDLING ====================
-
-bot.catch((err: any, ctx: any) => {
-  logger.error(`Error for ${ctx.updateType}:`, err);
-  ctx.reply('❌ Произошла ошибка. Попробуйте позже.').catch(() => {});
-});
-
-// ==================== CRON JOBS ====================
-
-function initCronJobs() {
-  // Payment reminders - every 6 hours
-  cron.schedule('0 */6 * * *', () => {
-    logger.info('Running payment reminders check...');
-    // TODO: Implement payment reminders with Prisma
-  });
-
-  // Contract expiration check - every day at 10:00
-  cron.schedule('0 10 * * *', () => {
-    logger.info('Running contract expiration check...');
-    // TODO: Implement contract expiration notifications
-  });
-
-  logger.info('Cron jobs initialized');
-}
-
-// ==================== STARTUP & SHUTDOWN ====================
-
-async function startBot() {
   try {
-    // Check database connection
+    await ctx.reply(getAboutText(), {
+      parse_mode: 'HTML',
+    });
+  } catch (error) {
+    logger.error({ error }, 'Error in /about command');
+    await ctx.reply('❌ Не удалось показать информацию.');
+  }
+});
+
+bot.command('ping', async (ctx) => {
+  try {
+    await ctx.reply('✅ Бот работает.');
+  } catch (error) {
+    logger.error({ error }, 'Error in /ping command');
+  }
+});
+
+bot.command('status', async (ctx) => {
+  try {
+    let dbOk = false;
+
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbOk = true;
+    } catch (dbError) {
+      logger.error({ dbError }, 'Database check failed');
+    }
+
+    const text = [
+      '📊 <b>Статус системы</b>',
+      '',
+      `Бот: ✅ работает`,
+      `База данных: ${dbOk ? '✅ подключена' : '❌ недоступна'}`,
+      `Режим: <b>${process.env.NODE_ENV || 'development'}</b>`,
+    ].join('\n');
+
+    await ctx.reply(text, { parse_mode: 'HTML' });
+  } catch (error) {
+    logger.error({ error }, 'Error in /status command');
+    await ctx.reply('❌ Не удалось получить статус.');
+  }
+});
+
+bot.on('text', async (ctx) => {
+  try {
+    await ctx.reply(
+      'Используйте команды /start, /menu, /help, /about, /ping, /status'
+    );
+  } catch (error) {
+    logger.error({ error }, 'Error in text fallback');
+  }
+});
+
+bot.catch((err, ctx) => {
+  logger.error(
+    {
+      err,
+      updateType: ctx.updateType,
+    },
+    'Unhandled bot error'
+  );
+});
+
+async function startBot(): Promise<void> {
+  try {
     await prisma.$connect();
     logger.info('Database connected successfully');
 
-    // Run migrations in production
     if (process.env.NODE_ENV === 'production') {
-      const { execSync } = require('child_process');
       try {
+        const { execSync } = require('child_process');
         execSync('npx prisma migrate deploy', { stdio: 'inherit' });
         logger.info('Database migrations applied');
       } catch (migrationError) {
-        logger.warn('Migration warning (may be first run):', migrationError);
+        logger.warn({ migrationError }, 'Migration warning');
       }
     }
 
-    // Launch bot
     await bot.launch();
     logger.info('Bot started successfully');
 
-    // Initialize cron jobs
-    initCronJobs();
-
-    // Enable graceful stop
-    process.once('SIGINT', () => {
+    process.once('SIGINT', async () => {
       logger.info('SIGINT received, shutting down...');
       bot.stop('SIGINT');
-      prisma.$disconnect();
+      await prisma.$disconnect();
     });
 
-    process.once('SIGTERM', () => {
+    process.once('SIGTERM', async () => {
       logger.info('SIGTERM received, shutting down...');
       bot.stop('SIGTERM');
-      prisma.$disconnect();
+      await prisma.$disconnect();
     });
-
   } catch (error) {
-    logger.error('Failed to start bot:', error);
+    logger.error({ error }, 'Failed to start bot');
     process.exit(1);
   }
 }
 
-// Start the bot
-startBot();
+void startBot();
 
 export { bot };
