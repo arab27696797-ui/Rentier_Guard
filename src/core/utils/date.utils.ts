@@ -1,69 +1,44 @@
-/**
- * Date Utilities
- * Утилиты для работы с датами
- */
-
 import { logger } from '../logger';
 
-/**
- * Формат даты: ДД.ММ.ГГГГ
- */
-const DATE_FORMAT_RU = 'DD.MM.YYYY';
+export const DATE_FORMAT_RU = 'DD.MM.YYYY';
 
-/**
- * Форматировать дату в формат ДД.ММ.ГГГГ
- * @param date - дата для форматирования (Date, string или number)
- * @returns string - отформатированная дата
- */
 export function formatDate(date: Date | string | number): string {
   try {
     const d = new Date(date);
 
-    if (isNaN(d.getTime())) {
+    if (Number.isNaN(d.getTime())) {
       throw new Error('Invalid date');
     }
 
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
 
     return `${day}.${month}.${year}`;
   } catch (error) {
-    logger.error('Ошибка форматирования даты', { date, error });
+    logger.error({ date, error }, 'Ошибка форматирования даты');
     return '—';
   }
 }
 
-/**
- * Форматировать дату и время в формат ДД.ММ.ГГГГ ЧЧ:ММ
- * @param date - дата для форматирования
- * @returns string - отформатированная дата и время
- */
 export function formatDateTime(date: Date | string | number): string {
   try {
     const d = new Date(date);
 
-    if (isNaN(d.getTime())) {
+    if (Number.isNaN(d.getTime())) {
       throw new Error('Invalid date');
     }
 
-    const dateStr = formatDate(d);
-    const hours = d.getHours().toString().padStart(2, '0');
-    const minutes = d.getMinutes().toString().padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
 
-    return `${dateStr} ${hours}:${minutes}`;
+    return `${formatDate(d)} ${hours}:${minutes}`;
   } catch (error) {
-    logger.error('Ошибка форматирования даты и времени', { date, error });
+    logger.error({ date, error }, 'Ошибка форматирования даты и времени');
     return '—';
   }
 }
 
-/**
- * Парсить дату из строки
- * @param dateString - строка с датой
- * @param format - формат даты (по умолчанию ДД.ММ.ГГГГ)
- * @returns Date | null - объект Date или null при ошибке
- */
 export function parseDate(
   dateString: string,
   format: 'DD.MM.YYYY' | 'YYYY-MM-DD' | 'MM/DD/YYYY' = 'DD.MM.YYYY'
@@ -73,89 +48,79 @@ export function parseDate(
       return null;
     }
 
-    let day: number, month: number, year: number;
+    let day = 0;
+    let month = 0;
+    let year = 0;
 
-    switch (format) {
-      case 'DD.MM.YYYY': {
-        const match = dateString.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-        if (!match) return null;
-        [, day, month, year] = match.map(Number);
-        break;
-      }
-      case 'YYYY-MM-DD': {
-        const match = dateString.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-        if (!match) return null;
-        [, year, month, day] = match.map(Number);
-        break;
-      }
-      case 'MM/DD/YYYY': {
-        const match = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (!match) return null;
-        [, month, day, year] = match.map(Number);
-        break;
-      }
-      default:
-        return null;
+    if (format === 'DD.MM.YYYY') {
+      const match = dateString.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      if (!match) return null;
+      day = Number(match[1]);
+      month = Number(match[2]);
+      year = Number(match[3]);
+    } else if (format === 'YYYY-MM-DD') {
+      const match = dateString.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!match) return null;
+      year = Number(match[1]);
+      month = Number(match[2]);
+      day = Number(match[3]);
+    } else {
+      const match = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (!match) return null;
+      month = Number(match[1]);
+      day = Number(match[2]);
+      year = Number(match[3]);
     }
 
     const date = new Date(year, month - 1, day);
 
-    // Проверяем корректность даты
     if (
-      date.getDate() !== day ||
+      date.getFullYear() !== year ||
       date.getMonth() !== month - 1 ||
-      date.getFullYear() !== year
+      date.getDate() !== day
     ) {
       return null;
     }
 
     return date;
   } catch (error) {
-    logger.error('Ошибка парсинга даты', { dateString, format, error });
+    logger.error({ dateString, format, error }, 'Ошибка парсинга даты');
     return null;
   }
 }
 
-/**
- * Добавить дни к дате
- * @param date - исходная дата
- * @param days - количество дней (может быть отрицательным)
- * @returns Date - новая дата
- */
 export function addDays(date: Date | string | number, days: number): Date {
   try {
     const d = new Date(date);
+
+    if (Number.isNaN(d.getTime())) {
+      throw new Error('Invalid date');
+    }
+
     d.setDate(d.getDate() + days);
     return d;
   } catch (error) {
-    logger.error('Ошибка при добавлении дней', { date, days, error });
+    logger.error({ date, days, error }, 'Ошибка при добавлении дней');
     return new Date();
   }
 }
 
-/**
- * Добавить месяцы к дате
- * @param date - исходная дата
- * @param months - количество месяцев
- * @returns Date - новая дата
- */
 export function addMonths(date: Date | string | number, months: number): Date {
   try {
     const d = new Date(date);
+
+    if (Number.isNaN(d.getTime())) {
+      throw new Error('Invalid date');
+    }
+
     d.setMonth(d.getMonth() + months);
     return d;
   } catch (error) {
-    logger.error('Ошибка при добавлении месяцев', { date, months, error });
+    logger.error({ date, months, error }, 'Ошибка при добавлении месяцев');
     return new Date();
   }
 }
 
-/**
- * Проверить, просрочена ли дата
- * @param date - дата для проверки
- * @param compareWith - дата сравнения (по умолчанию текущая)
- * @returns boolean - true если дата просрочена
- */
 export function isOverdue(
   date: Date | string | number,
   compareWith: Date | string | number = new Date()
@@ -164,26 +129,19 @@ export function isOverdue(
     const checkDate = new Date(date);
     const compareDate = new Date(compareWith);
 
-    // Сбрасываем время для корректного сравнения дат
     checkDate.setHours(0, 0, 0, 0);
     compareDate.setHours(0, 0, 0, 0);
 
     return checkDate < compareDate;
   } catch (error) {
-    logger.error('Ошибка при проверке просрочки', { date, compareWith, error });
+    logger.error({ date, compareWith, error }, 'Ошибка при проверке просрочки');
     return false;
   }
 }
 
-/**
- * Проверить, истекает ли срок в ближайшие N дней
- * @param date - дата для проверки
- * @param days - количество дней
- * @returns boolean - true если срок истекает
- */
 export function isExpiringSoon(
   date: Date | string | number,
-  days: number = 7
+  days = 7
 ): boolean {
   try {
     const checkDate = new Date(date);
@@ -196,96 +154,75 @@ export function isExpiringSoon(
 
     return checkDate >= today && checkDate <= future;
   } catch (error) {
-    logger.error('Ошибка при проверке срока', { date, days, error });
+    logger.error({ date, days, error }, 'Ошибка при проверке срока');
     return false;
   }
 }
 
-/**
- * Получить номер квартала
- * @param date - дата
- * @returns number - номер квартала (1-4)
- */
 export function getQuarter(date: Date | string | number = new Date()): number {
   try {
     const d = new Date(date);
-    const month = d.getMonth();
-    return Math.floor(month / 3) + 1;
+    return Math.floor(d.getMonth() / 3) + 1;
   } catch (error) {
-    logger.error('Ошибка при определении квартала', { date, error });
+    logger.error({ date, error }, 'Ошибка при определении квартала');
     return 1;
   }
 }
 
-/**
- * Получить начало квартала
- * @param date - дата
- * @returns Date - начало квартала
- */
-export function getQuarterStart(date: Date | string | number = new Date()): Date {
+export function getQuarterStart(
+  date: Date | string | number = new Date()
+): Date {
   try {
     const d = new Date(date);
     const quarter = getQuarter(d);
     const month = (quarter - 1) * 3;
+
     return new Date(d.getFullYear(), month, 1);
   } catch (error) {
-    logger.error('Ошибка при получении начала квартала', { date, error });
+    logger.error({ date, error }, 'Ошибка при получении начала квартала');
     return new Date();
   }
 }
 
-/**
- * Получить конец квартала
- * @param date - дата
- * @returns Date - конец квартала
- */
-export function getQuarterEnd(date: Date | string | number = new Date()): Date {
+export function getQuarterEnd(
+  date: Date | string | number = new Date()
+): Date {
   try {
     const d = new Date(date);
     const quarter = getQuarter(d);
     const month = quarter * 3;
+
     return new Date(d.getFullYear(), month, 0);
   } catch (error) {
-    logger.error('Ошибка при получении конца квартала', { date, error });
+    logger.error({ date, error }, 'Ошибка при получении конца квартала');
     return new Date();
   }
 }
 
-/**
- * Типы налогов
- */
-export type TaxType = 'ndfl' | 'usn' | 'nds' | 'property' | 'land' | 'transport';
+export type TaxType =
+  | 'ndfl'
+  | 'usn'
+  | 'nds'
+  | 'property'
+  | 'land'
+  | 'transport';
 
-/**
- * Получить срок уплаты налога
- * @param taxType - тип налога
- * @param year - год
- * @returns Date - срок уплаты
- */
-export function getTaxDeadline(taxType: TaxType, year: number = new Date().getFullYear()): Date {
+export function getTaxDeadline(
+  taxType: TaxType,
+  year = new Date().getFullYear()
+): Date {
   const deadlines: Record<TaxType, Date> = {
-    // НДФЛ - 15 апреля следующего года
     ndfl: new Date(year + 1, 3, 15),
-    // УСН - 28 апреля, 28 июля, 28 октября (ежеквартально)
     usn: new Date(year, 3, 28),
-    // НДС - 25 число месяца следующего за кварталом
     nds: new Date(year, 3, 25),
-    // Налог на имущество - 1 марта следующего года
     property: new Date(year + 1, 2, 1),
-    // Земельный налог - 1 марта следующего года
     land: new Date(year + 1, 2, 1),
-    // Транспортный налог - 1 марта следующего года
     transport: new Date(year + 1, 2, 1),
   };
 
-  return deadlines[taxType] || new Date(year, 11, 31);
+  return deadlines[taxType];
 }
 
-/**
- * Получить оставшиеся дни до даты
- * @param date - целевая дата
- * @returns number - количество дней (отрицательное если просрочено)
- */
 export function getDaysRemaining(date: Date | string | number): number {
   try {
     const targetDate = new Date(date);
@@ -295,24 +232,16 @@ export function getDaysRemaining(date: Date | string | number): number {
     today.setHours(0, 0, 0, 0);
 
     const diffTime = targetDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   } catch (error) {
-    logger.error('Ошибка при расчете оставшихся дней', { date, error });
+    logger.error({ date, error }, 'Ошибка при расчете оставшихся дней');
     return 0;
   }
 }
 
-/**
- * Получить название месяца на русском
- * @param month - номер месяца (0-11) или дата
- * @param short - короткое название
- * @returns string - название месяца
- */
 export function getMonthName(
   month: number | Date,
-  short: boolean = false
+  short = false
 ): string {
   const monthNames = [
     'Январь',
@@ -347,14 +276,13 @@ export function getMonthName(
   const monthIndex = month instanceof Date ? month.getMonth() : month;
   const names = short ? shortNames : monthNames;
 
-  return names[monthIndex] || '';
+  if (monthIndex < 0 || monthIndex > 11) {
+    return '';
+  }
+
+  return names[monthIndex];
 }
 
-/**
- * Проверить, является ли дата валидной
- * @param date - значение для проверки
- * @returns boolean - true если дата валидна
- */
-export function isValidDate(date: unknown): date is Date {
-  return date instanceof Date && !isNaN(date.getTime());
+export function isValidDateObject(date: unknown): date is Date {
+  return date instanceof Date && !Number.isNaN(date.getTime());
 }
