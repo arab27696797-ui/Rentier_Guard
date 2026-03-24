@@ -5,8 +5,7 @@
 
 import type { MiddlewareFn } from 'telegraf';
 import type { BotContext, UserInfo } from '@types/index';
-import { createModuleLogger } from '@core/utils/logger';
-import { ErrorCode, AppError } from '@types/index';
+import { createModuleLogger } from '../utils/logger';
 
 // ============================================================================
 // Логгер модуля
@@ -19,15 +18,6 @@ const logger = createModuleLogger('AuthMiddleware');
 // ============================================================================
 
 /**
- * Результат проверки аутентификации
- */
-interface AuthResult {
-  isAuthenticated: boolean;
-  user?: UserInfo;
-  error?: string;
-}
-
-/**
  * Опции middleware аутентификации
  */
 interface AuthMiddlewareOptions {
@@ -38,10 +28,6 @@ interface AuthMiddlewareOptions {
   /** Сообщение при отказе в доступе */
   accessDeniedMessage?: string;
 }
-
-// ============================================================================
-// Сервис аутентификации (интерфейс)
- */
 
 /**
  * Интерфейс сервиса аутентификации
@@ -79,37 +65,33 @@ export function createAuthMiddleware(
     const telegramId = ctx.from?.id;
 
     if (!telegramId) {
-      logger.warn('Запрос без telegramId');
+      logger.warn({ updateId: ctx.update?.update_id }, 'Запрос без telegramId');
       await ctx.reply('❌ Не удалось определить пользователя.');
       return;
     }
 
     try {
-      // Проверяем пользователя в базе
       const user = await authService.findUserByTelegramId(telegramId);
 
-      // Если требуется регистрация и пользователь не найден
       if (requireRegistration && !user) {
         logger.info({ telegramId }, 'Незарегистрированный пользователь');
         await ctx.reply(
           '👋 Добро пожаловать в RentierGuard!\n\n' +
-          'Для начала работы необходимо зарегистрироваться.\n' +
-          'Используйте команду /start'
+            'Для начала работы необходимо зарегистрироваться.\n' +
+            'Используйте команду /start'
         );
         return;
       }
 
-      // Если пользователь найден, проверяем роль
       if (user) {
-        // Проверка активности
         const isActive = await authService.isUserActive(user.id);
+
         if (!isActive) {
           logger.warn({ telegramId, userId: user.id }, 'Неактивный пользователь');
           await ctx.reply('🔒 Ваш аккаунт деактивирован. Обратитесь к администратору.');
           return;
         }
 
-        // Проверка роли
         if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
           logger.warn(
             { telegramId, userId: user.id, role: user.role, allowedRoles },
@@ -119,7 +101,10 @@ export function createAuthMiddleware(
           return;
         }
 
-        // Сохраняем данные пользователя в сессию
+        if (!ctx.session) {
+          (ctx as BotContext).session = {} as BotContext['session'];
+        }
+
         ctx.session.userId = user.id;
         ctx.session.role = user.role;
 
@@ -146,14 +131,15 @@ export function createAuthMiddleware(
  * Используется после основного auth middleware
  */
 export const requireUserId: MiddlewareFn<BotContext> = async (ctx, next) => {
-  if (!ctx.session.userId) {
-    logger.warn('Отсутствует userId в сессии');
+  if (!ctx.session?.userId) {
+    logger.warn({ fromId: ctx.from?.id }, 'Отсутствует userId в сессии');
     await ctx.reply(
       '⚠️ Сессия истекла или вы не авторизованы.\n' +
-      'Пожалуйста, используйте команду /start'
+        'Пожалуйста, используйте команду /start'
     );
     return;
   }
+
   await next();
 };
 
@@ -171,10 +157,10 @@ export function requireRoles(
   customMessage?: string
 ): MiddlewareFn<BotContext> {
   return async (ctx, next) => {
-    const userRole = ctx.session.role;
+    const userRole = ctx.session?.role;
 
     if (!userRole) {
-      logger.warn('Отсутствует роль в сессии');
+      logger.warn({ fromId: ctx.from?.id }, 'Отсутствует роль в сессии');
       await ctx.reply('⚠️ Не удалось определить вашу роль.');
       return;
     }
@@ -185,8 +171,7 @@ export function requireRoles(
         'Недостаточно прав доступа'
       );
       await ctx.reply(
-        customMessage ||
-        `⛔ Эта функция доступна только для: ${roles.join(', ')}`
+        customMessage || `⛔ Эта функция доступна только для: ${roles.join(', ')}`
       );
       return;
     }
@@ -200,7 +185,8 @@ export function requireRoles(
 // ============================================================================
 
 /** Middleware только для владельцев */
-export const requireOwner = requireRoles(['OWNER'], 
+export const requireOwner = requireRoles(
+  ['OWNER'],
   '⛔ Эта функция доступна только владельцам объектов.'
 );
 
@@ -224,7 +210,11 @@ export const requireExpert = requireRoles(
  * Middleware для обновления времени последней активности
  */
 export const updateActivity: MiddlewareFn<BotContext> = async (ctx, next) => {
-  ctx.session.lastActivity = new Date();
+  if (!ctx.session) {
+    (ctx as BotContext).session = {} as BotContext['session'];
+  }
+
+  (ctx.session as BotContext['session']).lastActivity = new Date();
   await next();
 };
 
@@ -244,15 +234,10 @@ export function createProtectedMiddleware(
   const authMiddleware = createAuthMiddleware(authService, options);
 
   return async (ctx, next) => {
-    // Создаем цепочку middleware
-    const runMiddleware = async (): Promise<void> => {
-      await authMiddleware(ctx, async () => {
-        await requireUserId(ctx, async () => {
-          await next();
-        });
+    await authMiddleware(ctx, async () => {
+      await requireUserId(ctx, async () => {
+        await next();
       });
-    };
-
-    await runMiddleware();
+    });
   };
 }
