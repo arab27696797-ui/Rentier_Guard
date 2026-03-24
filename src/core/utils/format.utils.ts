@@ -1,32 +1,20 @@
-/**
- * Format Utilities
- * Утилиты для форматирования данных
- */
-
 import { logger } from '../logger';
 
-/**
- * Форматировать сумму в рублях
- * @param amount - сумма (число или строка)
- * @param showCurrency - показывать символ валюты
- * @returns string - отформатированная сумма
- */
 export function formatCurrency(
   amount: number | string | null | undefined,
-  showCurrency: boolean = true
+  showCurrency = true
 ): string {
   try {
     if (amount === null || amount === undefined) {
       return '—';
     }
 
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    const numAmount = typeof amount === 'string' ? Number(amount) : amount;
 
-    if (isNaN(numAmount)) {
+    if (!Number.isFinite(numAmount)) {
       return '—';
     }
 
-    // Форматируем с разделителями тысяч
     const formatted = numAmount.toLocaleString('ru-RU', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
@@ -34,91 +22,74 @@ export function formatCurrency(
 
     return showCurrency ? `${formatted} ₽` : formatted;
   } catch (error) {
-    logger.error('Ошибка форматирования валюты', { amount, error });
+    logger.error({ amount, error }, 'Ошибка форматирования валюты');
     return '—';
   }
 }
 
-/**
- * Форматировать телефонный номер
- * @param phone - номер телефона
- * @returns string - отформатированный номер
- */
 export function formatPhone(phone: string | null | undefined): string {
   try {
     if (!phone) {
       return '—';
     }
 
-    // Удаляем все нецифровые символы
     const digits = phone.replace(/\D/g, '');
 
-    // Проверяем длину
     if (digits.length < 10 || digits.length > 11) {
-      return phone; // Возвращаем как есть если не похоже на телефон
+      return phone;
     }
 
-    // Нормализуем к формату 7XXXXXXXXXX
     let normalized = digits;
+
     if (digits.length === 10) {
-      normalized = '7' + digits;
+      normalized = `7${digits}`;
     } else if (digits.startsWith('8')) {
-      normalized = '7' + digits.slice(1);
+      normalized = `7${digits.slice(1)}`;
     }
 
-    // Форматируем: +7 (XXX) XXX-XX-XX
-    const formatted = `+${normalized.slice(0, 1)} (${normalized.slice(1, 4)}) ${normalized.slice(4, 7)}-${normalized.slice(7, 9)}-${normalized.slice(9, 11)}`;
+    if (normalized.length !== 11) {
+      return phone;
+    }
 
-    return formatted;
+    return `+${normalized.slice(0, 1)} (${normalized.slice(1, 4)}) ${normalized.slice(4, 7)}-${normalized.slice(7, 9)}-${normalized.slice(9, 11)}`;
   } catch (error) {
-    logger.error('Ошибка форматирования телефона', { phone, error });
-    return phone || '—';
+    logger.error({ phone, error }, 'Ошибка форматирования телефона');
+    return phone ?? '—';
   }
 }
 
-/**
- * Экранировать специальные символы Markdown
- * @param text - текст для экранирования
- * @returns string - экранированный текст
- */
 export function escapeMarkdown(text: string | null | undefined): string {
   try {
     if (!text) {
       return '';
     }
 
-    // Экранируем специальные символы Markdown v2
     return text
-      .replace(/\\/g, '\\\\')   // Обратный слеш
-      .replace(/\*/g, '\\*')    // Звездочка
-      .replace(/_/g, '\\_')     // Подчеркивание
-      .replace(/\[/g, '\\[')    // Открывающая скобка
-      .replace(/\]/g, '\\]')    // Закрывающая скобка
-      .replace(/\(/g, '\\(')    // Открывающая скобка
-      .replace(/\)/g, '\\)')    // Закрывающая скобка
-      .replace(/~/g, '\\~')     // Тильда
-      .replace(/`/g, '\\`')     // Обратная кавычка
-      .replace(/>/g, '\\>')     // Больше
-      .replace(/#/g, '\\#')     // Решетка
-      .replace(/\+/g, '\\+')    // Плюс
-      .replace(/-/g, '\\-')     // Минус
-      .replace(/=/g, '\\=')     // Равно
-      .replace(/\|/g, '\\|')    // Вертикальная черта
-      .replace(/\{/g, '\\{')    // Фигурная скобка
-      .replace(/\}/g, '\\}')    // Фигурная скобка
-      .replace(/\./g, '\\.')    // Точка
-      .replace(/!/g, '\\!');    // Восклицательный знак
+      .replace(/\\/g, '\\\\')
+      .replace(/\*/g, '\\*')
+      .replace(/_/g, '\\_')
+      .replace(/\[/g, '\\[')
+      .replace(/\]/g, '\\]')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)')
+      .replace(/~/g, '\\~')
+      .replace(/`/g, '\\`')
+      .replace(/>/g, '\\>')
+      .replace(/#/g, '\\#')
+      .replace(/\+/g, '\\+')
+      .replace(/-/g, '\\-')
+      .replace(/=/g, '\\=')
+      .replace(/\|/g, '\\|')
+      .replace(/\{/g, '\\{')
+      .replace(/\}/g, '\\}')
+      .replace(/\./g, '\\.')
+      .replace(/!/g, '\\!');
   } catch (error) {
-    logger.error('Ошибка экранирования Markdown', { text, error });
-    return text || '';
+    logger.error({ text, error }, 'Ошибка экранирования Markdown');
+    return text ?? '';
   }
 }
 
-/**
- * Экранировать HTML-теги
- * @param text - текст для экранирования
- * @returns string - экранированный текст
- */
 export function escapeHtml(text: string | null | undefined): string {
   try {
     if (!text) {
@@ -132,22 +103,15 @@ export function escapeHtml(text: string | null | undefined): string {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   } catch (error) {
-    logger.error('Ошибка экранирования HTML', { text, error });
-    return text || '';
+    logger.error({ text, error }, 'Ошибка экранирования HTML');
+    return text ?? '';
   }
 }
 
-/**
- * Обрезать текст до указанной длины
- * @param text - исходный текст
- * @param length - максимальная длина
- * @param suffix - суффикс для обрезанного текста
- * @returns string - обрезанный текст
- */
 export function truncate(
   text: string | null | undefined,
-  length: number = 100,
-  suffix: string = '...'
+  length = 100,
+  suffix = '...'
 ): string {
   try {
     if (!text) {
@@ -158,59 +122,51 @@ export function truncate(
       return text;
     }
 
-    return text.slice(0, length - suffix.length) + suffix;
+    if (length <= suffix.length) {
+      return suffix.slice(0, length);
+    }
+
+    return `${text.slice(0, length - suffix.length)}${suffix}`;
   } catch (error) {
-    logger.error('Ошибка обрезки текста', { text, length, error });
-    return text || '';
+    logger.error({ text, length, error }, 'Ошибка обрезки текста');
+    return text ?? '';
   }
 }
 
-/**
- * Форматировать процент
- * @param value - значение (0.15 = 15%)
- * @param decimals - количество знаков после запятой
- * @returns string - отформатированный процент
- */
 export function formatPercent(
   value: number | string | null | undefined,
-  decimals: number = 0
+  decimals = 0
 ): string {
   try {
     if (value === null || value === undefined) {
       return '—';
     }
 
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    const numValue = typeof value === 'string' ? Number(value) : value;
 
-    if (isNaN(numValue)) {
+    if (!Number.isFinite(numValue)) {
       return '—';
     }
 
     return `${(numValue * 100).toFixed(decimals)}%`;
   } catch (error) {
-    logger.error('Ошибка форматирования процента', { value, error });
+    logger.error({ value, error }, 'Ошибка форматирования процента');
     return '—';
   }
 }
 
-/**
- * Форматировать число с разделителями
- * @param value - число
- * @param decimals - количество знаков после запятой
- * @returns string - отформатированное число
- */
 export function formatNumber(
   value: number | string | null | undefined,
-  decimals: number = 0
+  decimals = 0
 ): string {
   try {
     if (value === null || value === undefined) {
       return '—';
     }
 
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    const numValue = typeof value === 'string' ? Number(value) : value;
 
-    if (isNaN(numValue)) {
+    if (!Number.isFinite(numValue)) {
       return '—';
     }
 
@@ -219,19 +175,11 @@ export function formatNumber(
       maximumFractionDigits: decimals,
     });
   } catch (error) {
-    logger.error('Ошибка форматирования числа', { value, error });
+    logger.error({ value, error }, 'Ошибка форматирования числа');
     return '—';
   }
 }
 
-/**
- * Форматировать адрес в одну строку
- * @param city - город
- * @param street - улица
- * @param house - дом
- * @param apartment - квартира
- * @returns string - отформатированный адрес
- */
 export function formatAddress(
   city?: string | null,
   street?: string | null,
@@ -248,24 +196,14 @@ export function formatAddress(
 
     return parts.length > 0 ? parts.join(', ') : '—';
   } catch (error) {
-    logger.error('Ошибка форматирования адреса', {
-      city,
-      street,
-      house,
-      apartment,
-      error,
-    });
+    logger.error(
+      { city, street, house, apartment, error },
+      'Ошибка форматирования адреса'
+    );
     return '—';
   }
 }
 
-/**
- * Форматировать ФИО
- * @param lastName - фамилия
- * @param firstName - имя
- * @param middleName - отчество
- * @returns string - отформатированное ФИО
- */
 export function formatFullName(
   lastName?: string | null,
   firstName?: string | null,
@@ -280,21 +218,14 @@ export function formatFullName(
 
     return parts.length > 0 ? parts.join(' ') : '—';
   } catch (error) {
-    logger.error('Ошибка форматирования ФИО', {
-      lastName,
-      firstName,
-      middleName,
-      error,
-    });
+    logger.error(
+      { lastName, firstName, middleName, error },
+      'Ошибка форматирования ФИО'
+    );
     return '—';
   }
 }
 
-/**
- * Форматировать ИНН с разделителями
- * @param inn - ИНН
- * @returns string - отформатированный ИНН
- */
 export function formatINN(inn: string | null | undefined): string {
   try {
     if (!inn) {
@@ -303,26 +234,17 @@ export function formatINN(inn: string | null | undefined): string {
 
     const digits = inn.replace(/\D/g, '');
 
-    if (digits.length === 10) {
-      // Юридическое лицо: XXXXXXXXXX
-      return digits;
-    } else if (digits.length === 12) {
-      // Физическое лицо: XXXXXXXXXXXX
+    if (digits.length === 10 || digits.length === 12) {
       return digits;
     }
 
     return inn;
   } catch (error) {
-    logger.error('Ошибка форматирования ИНН', { inn, error });
-    return inn || '—';
+    logger.error({ inn, error }, 'Ошибка форматирования ИНН');
+    return inn ?? '—';
   }
 }
 
-/**
- * Преобразовать первую букву в заглавную
- * @param text - исходный текст
- * @returns string - текст с заглавной буквы
- */
 export function capitalize(text: string | null | undefined): string {
   try {
     if (!text) {
@@ -331,16 +253,11 @@ export function capitalize(text: string | null | undefined): string {
 
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   } catch (error) {
-    logger.error('Ошибка при capitalizing', { text, error });
-    return text || '';
+    logger.error({ text, error }, 'Ошибка приведения к Capitalize');
+    return text ?? '';
   }
 }
 
-/**
- * Убрать лишние пробелы из текста
- * @param text - исходный текст
- * @returns string - текст без лишних пробелов
- */
 export function normalizeWhitespace(text: string | null | undefined): string {
   try {
     if (!text) {
@@ -349,7 +266,7 @@ export function normalizeWhitespace(text: string | null | undefined): string {
 
     return text.replace(/\s+/g, ' ').trim();
   } catch (error) {
-    logger.error('Ошибка нормализации пробелов', { text, error });
-    return text || '';
+    logger.error({ text, error }, 'Ошибка нормализации пробелов');
+    return text ?? '';
   }
 }
