@@ -4,16 +4,17 @@
  */
 
 import pino from 'pino';
+import type { Logger as PinoLogger } from 'pino';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const LOG_LEVEL = process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
+const logLevel = process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
 
 const loggerConfig: pino.LoggerOptions = {
-  level: LOG_LEVEL,
+  level: logLevel,
   timestamp: pino.stdTimeFunctions.isoTime,
 };
 
-export const logger = pino({
+export const logger: PinoLogger = pino({
   ...loggerConfig,
   transport: isDevelopment
     ? {
@@ -27,12 +28,12 @@ export const logger = pino({
     : undefined,
 });
 
-export function createModuleLogger(moduleName: string): pino.Logger {
+export function createModuleLogger(moduleName: string): PinoLogger {
   return logger.child({ module: moduleName });
 }
 
-export function createUserLogger(userId: string, telegramId: number): pino.Logger {
+export function createUserLogger(userId: string, telegramId: number): PinoLogger {
   return logger.child({ userId, telegramId });
 }
 
-export type { Logger } from 'pino';
+export type Logger = PinoLogger;
