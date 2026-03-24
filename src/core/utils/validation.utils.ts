@@ -1,254 +1,164 @@
-/**
- * Validation Utilities
- * Утилиты для валидации данных
- */
-
 import { logger } from '../logger';
 
-/**
- * Проверить валидность ИНН
- * @param inn - ИНН для проверки
- * @returns boolean - true если ИНН валиден
- */
 export function isValidINN(inn: string | null | undefined): boolean {
   try {
     if (!inn) {
       return false;
     }
 
-    // Удаляем все нецифровые символы
     const digits = inn.replace(/\D/g, '');
 
-    // ИНН должен быть 10 или 12 цифр
     if (digits.length !== 10 && digits.length !== 12) {
       return false;
     }
 
-    // Проверка контрольной суммы для 10-значного ИНН (юр. лица)
     if (digits.length === 10) {
       const coefficients = [2, 4, 10, 3, 5, 9, 4, 6, 8];
       let sum = 0;
 
-      for (let i = 0; i < 9; i++) {
-        sum += parseInt(digits[i]) * coefficients[i];
+      for (let i = 0; i < 9; i += 1) {
+        sum += Number(digits[i]) * coefficients[i];
       }
 
-      const checkDigit = sum % 11 % 10;
-      return checkDigit === parseInt(digits[9]);
+      const checkDigit = (sum % 11) % 10;
+      return checkDigit === Number(digits[9]);
     }
 
-    // Проверка контрольной суммы для 12-значного ИНН (физ. лица)
-    if (digits.length === 12) {
-      // Первая контрольная цифра
-      const coefficients1 = [7, 2, 4, 10, 3, 5, 9, 4, 6, 8];
-      let sum1 = 0;
+    const coefficients1 = [7, 2, 4, 10, 3, 5, 9, 4, 6, 8];
+    let sum1 = 0;
 
-      for (let i = 0; i < 10; i++) {
-        sum1 += parseInt(digits[i]) * coefficients1[i];
-      }
-
-      const checkDigit1 = sum1 % 11 % 10;
-
-      // Вторая контрольная цифра
-      const coefficients2 = [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8];
-      let sum2 = 0;
-
-      for (let i = 0; i < 11; i++) {
-        sum2 += parseInt(digits[i]) * coefficients2[i];
-      }
-
-      const checkDigit2 = sum2 % 11 % 10;
-
-      return (
-        checkDigit1 === parseInt(digits[10]) &&
-        checkDigit2 === parseInt(digits[11])
-      );
+    for (let i = 0; i < 10; i += 1) {
+      sum1 += Number(digits[i]) * coefficients1[i];
     }
 
-    return false;
+    const checkDigit1 = (sum1 % 11) % 10;
+
+    const coefficients2 = [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8];
+    let sum2 = 0;
+
+    for (let i = 0; i < 11; i += 1) {
+      sum2 += Number(digits[i]) * coefficients2[i];
+    }
+
+    const checkDigit2 = (sum2 % 11) % 10;
+
+    return checkDigit1 === Number(digits[10]) && checkDigit2 === Number(digits[11]);
   } catch (error) {
-    logger.error('Ошибка валидации ИНН', { inn, error });
+    logger.error({ inn, error }, 'Ошибка валидации ИНН');
     return false;
   }
 }
 
-/**
- * Проверить валидность паспортных данных
- * @param passport - серия и номер паспорта
- * @returns boolean - true если паспорт валиден
- */
 export function isValidPassport(passport: string | null | undefined): boolean {
   try {
     if (!passport) {
       return false;
     }
 
-    // Удаляем все нецифровые символы
     const digits = passport.replace(/\D/g, '');
 
-    // Паспорт РФ: 10 цифр (4 серия + 6 номер)
     if (digits.length !== 10) {
       return false;
     }
 
-    // Серия паспорта (первые 4 цифры)
-    const series = digits.slice(0, 4);
-    // Номер паспорта (последние 6 цифр)
-    const number = digits.slice(4, 10);
+    const regionCode = Number(digits.slice(0, 2));
+    const passportNumber = Number(digits.slice(4, 10));
 
-    // Проверка серии: первая пара цифр - код региона (01-99)
-    const regionCode = parseInt(series.slice(0, 2));
     if (regionCode < 1 || regionCode > 99) {
       return false;
     }
 
-    // Вторая пара цифр - год выдачи (00-99)
-    const yearCode = parseInt(series.slice(2, 4));
-    if (yearCode < 0 || yearCode > 99) {
-      return false;
-    }
-
-    // Номер должен быть от 000001 до 999999
-    const passportNumber = parseInt(number);
     if (passportNumber < 1 || passportNumber > 999999) {
       return false;
     }
 
     return true;
   } catch (error) {
-    logger.error('Ошибка валидации паспорта', { passport, error });
+    logger.error({ passport, error }, 'Ошибка валидации паспорта');
     return false;
   }
 }
 
-/**
- * Проверить валидность кадастрового номера
- * @param number - кадастровый номер
- * @returns boolean - true если номер валиден
- */
 export function isValidCadastralNumber(
-  number: string | null | undefined
+  value: string | null | undefined
 ): boolean {
   try {
-    if (!number) {
+    if (!value) {
       return false;
     }
 
-    // Удаляем пробелы
-    const cleaned = number.replace(/\s/g, '');
-
-    // Регулярное выражение для кадастрового номера
-    // Формат: XX:XX:XXXXXXX:XX или XX:XX:XXXXXXX:XXX
-    // где X - цифра
-    const pattern = /^\d{2}:\d{2}:\d{7}:\d{2,3}$/;
+    const cleaned = value.replace(/\s/g, '');
+    const pattern = /^\d{2}:\d{2}:\d{6,7}:\d{1,4}$/;
 
     if (!pattern.test(cleaned)) {
       return false;
     }
 
-    // Дополнительная проверка частей
     const parts = cleaned.split(':');
+    const regionCode = Number(parts[0]);
+    const districtCode = Number(parts[1]);
 
-    // Код субъекта РФ (первые 2 цифры)
-    const regionCode = parseInt(parts[0]);
     if (regionCode < 1 || regionCode > 99) {
       return false;
     }
 
-    // Код района (2 цифры)
-    const districtCode = parseInt(parts[1]);
     if (districtCode < 0 || districtCode > 99) {
-      return false;
-    }
-
-    // Код квартала (7 цифр)
-    const quarterCode = parts[2];
-    if (quarterCode.length !== 7) {
-      return false;
-    }
-
-    // Номер объекта (2-3 цифры)
-    const objectNumber = parts[3];
-    if (objectNumber.length < 2 || objectNumber.length > 3) {
       return false;
     }
 
     return true;
   } catch (error) {
-    logger.error('Ошибка валидации кадастрового номера', { number, error });
+    logger.error({ value, error }, 'Ошибка валидации кадастрового номера');
     return false;
   }
 }
 
-/**
- * Проверить валидность даты
- * @param date - дата для проверки
- * @returns boolean - true если дата валидна
- */
-export function isValidDate(date: unknown): boolean {
+export function isValidDate(value: unknown): boolean {
   try {
-    if (date instanceof Date) {
-      return !isNaN(date.getTime());
+    if (value instanceof Date) {
+      return !Number.isNaN(value.getTime());
     }
 
-    if (typeof date === 'string') {
-      const parsed = new Date(date);
-      return !isNaN(parsed.getTime());
-    }
-
-    if (typeof date === 'number') {
-      const parsed = new Date(date);
-      return !isNaN(parsed.getTime());
+    if (typeof value === 'string' || typeof value === 'number') {
+      const parsed = new Date(value);
+      return !Number.isNaN(parsed.getTime());
     }
 
     return false;
   } catch (error) {
-    logger.error('Ошибка валидации даты', { date, error });
+    logger.error({ value, error }, 'Ошибка валидации даты');
     return false;
   }
 }
 
-/**
- * Проверить валидность email
- * @param email - email для проверки
- * @returns boolean - true если email валиден
- */
 export function isValidEmail(email: string | null | undefined): boolean {
   try {
     if (!email) {
       return false;
     }
 
-    // RFC 5322 compliant regex (упрощенная версия)
-    const pattern = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const pattern =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
     return pattern.test(email);
   } catch (error) {
-    logger.error('Ошибка валидации email', { email, error });
+    logger.error({ email, error }, 'Ошибка валидации email');
     return false;
   }
 }
 
-/**
- * Проверить валидность телефонного номера
- * @param phone - номер телефона
- * @returns boolean - true если телефон валиден
- */
 export function isValidPhone(phone: string | null | undefined): boolean {
   try {
     if (!phone) {
       return false;
     }
 
-    // Удаляем все нецифровые символы
     const digits = phone.replace(/\D/g, '');
 
-    // Телефон должен содержать 10 или 11 цифр
     if (digits.length !== 10 && digits.length !== 11) {
       return false;
     }
 
-    // Если 11 цифр, первая должна быть 7 или 8
     if (digits.length === 11) {
       const firstDigit = digits[0];
       if (firstDigit !== '7' && firstDigit !== '8') {
@@ -258,38 +168,29 @@ export function isValidPhone(phone: string | null | undefined): boolean {
 
     return true;
   } catch (error) {
-    logger.error('Ошибка валидации телефона', { phone, error });
+    logger.error({ phone, error }, 'Ошибка валидации телефона');
     return false;
   }
 }
 
-/**
- * Проверить валидность СНИЛС
- * @param snils - СНИЛС для проверки
- * @returns boolean - true если СНИЛС валиден
- */
 export function isValidSNILS(snils: string | null | undefined): boolean {
   try {
     if (!snils) {
       return false;
     }
 
-    // Удаляем все нецифровые символы
     const digits = snils.replace(/\D/g, '');
 
-    // СНИЛС должен содержать 11 цифр
     if (digits.length !== 11) {
       return false;
     }
 
-    // Проверка контрольного числа
     const numberPart = digits.slice(0, 9);
-    const checkDigits = digits.slice(9, 11);
+    const checkDigits = Number(digits.slice(9, 11));
 
-    // Вычисляем контрольную сумму
     let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(numberPart[i]) * (9 - i);
+    for (let i = 0; i < 9; i += 1) {
+      sum += Number(numberPart[i]) * (9 - i);
     }
 
     let checkNumber: number;
@@ -305,119 +206,77 @@ export function isValidSNILS(snils: string | null | undefined): boolean {
       }
     }
 
-    return checkNumber === parseInt(checkDigits);
+    return checkNumber === checkDigits;
   } catch (error) {
-    logger.error('Ошибка валидации СНИЛС', { snils, error });
+    logger.error({ snils, error }, 'Ошибка валидации СНИЛС');
     return false;
   }
 }
 
-/**
- * Проверить валидность ОГРН
- * @param ogrn - ОГРН для проверки
- * @returns boolean - true если ОГРН валиден
- */
 export function isValidOGRN(ogrn: string | null | undefined): boolean {
   try {
     if (!ogrn) {
       return false;
     }
 
-    // Удаляем все нецифровые символы
     const digits = ogrn.replace(/\D/g, '');
 
-    // ОГРН должен содержать 13 цифр (юр. лица) или 15 цифр (ИП)
-    if (digits.length !== 13 && digits.length !== 15) {
-      return false;
+    if (digits.length === 13) {
+      const numberPart = digits.slice(0, 12);
+      const checkDigit = Number(digits[12]);
+      const calculatedCheck = Number(BigInt(numberPart) % 11n % 10n);
+      return calculatedCheck === checkDigit;
     }
 
-    if (digits.length === 13) {
-      // ОГРН для юридического лица
-      const numberPart = digits.slice(0, 12);
-      const checkDigit = parseInt(digits[12]);
-      const remainder = parseInt(numberPart) % 11;
-      const calculatedCheck = remainder % 10;
-      return calculatedCheck === checkDigit;
-    } else {
-      // ОГРНИП для индивидуального предпринимателя
+    if (digits.length === 15) {
       const numberPart = digits.slice(0, 14);
-      const checkDigit = parseInt(digits[14]);
-      const remainder = parseInt(numberPart) % 13;
-      const calculatedCheck = remainder % 10;
+      const checkDigit = Number(digits[14]);
+      const calculatedCheck = Number(BigInt(numberPart) % 13n % 10n);
       return calculatedCheck === checkDigit;
     }
+
+    return false;
   } catch (error) {
-    logger.error('Ошибка валидации ОГРН', { ogrn, error });
+    logger.error({ ogrn, error }, 'Ошибка валидации ОГРН');
     return false;
   }
 }
 
-/**
- * Проверить валидность КПП
- * @param kpp - КПП для проверки
- * @returns boolean - true если КПП валиден
- */
 export function isValidKPP(kpp: string | null | undefined): boolean {
   try {
     if (!kpp) {
       return false;
     }
 
-    // Удаляем все нецифровые символы
     const digits = kpp.replace(/\D/g, '');
 
-    // КПП должен содержать 9 цифр
     if (digits.length !== 9) {
       return false;
     }
 
-    // Проверка структуры КПП
-    // Первые 4 цифры - код налоговой инспекции
-    // Следующие 2 цифры - причина постановки на учет
-    // Последние 3 цифры - порядковый номер
+    const taxCode = Number(digits.slice(0, 4));
+    const reasonCode = Number(digits.slice(4, 6));
 
-    const taxCode = parseInt(digits.slice(0, 4));
-    const reasonCode = parseInt(digits.slice(4, 6));
-    const serialNumber = parseInt(digits.slice(6, 9));
-
-    // Код налоговой должен быть от 0101 до 9999
     if (taxCode < 101 || taxCode > 9999) {
       return false;
     }
 
-    // Причина постановки должна быть валидной
     const validReasons = [1, 2, 3, 4, 5, 6, 7, 8, 9, 43, 44, 45, 57, 58];
-    if (!validReasons.includes(reasonCode)) {
-      return false;
-    }
-
-    return true;
+    return validReasons.includes(reasonCode);
   } catch (error) {
-    logger.error('Ошибка валидации КПП', { kpp, error });
+    logger.error({ kpp, error }, 'Ошибка валидации КПП');
     return false;
   }
 }
 
-/**
- * Проверить, не пустая ли строка
- * @param value - значение для проверки
- * @returns boolean - true если строка не пустая
- */
 export function isNotEmpty(value: string | null | undefined): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-/**
- * Проверить длину строки
- * @param value - строка для проверки
- * @param min - минимальная длина
- * @param max - максимальная длина
- * @returns boolean - true если длина в допустимом диапазоне
- */
 export function isLengthValid(
   value: string | null | undefined,
-  min: number = 0,
-  max: number = Infinity
+  min = 0,
+  max = Number.POSITIVE_INFINITY
 ): boolean {
   if (!value) {
     return min === 0;
@@ -427,34 +286,23 @@ export function isLengthValid(
   return length >= min && length <= max;
 }
 
-/**
- * Проверить, является ли значение числом
- * @param value - значение для проверки
- * @returns boolean - true если значение - число
- */
 export function isNumber(value: unknown): boolean {
   if (typeof value === 'number') {
-    return !isNaN(value);
+    return !Number.isNaN(value);
   }
 
-  if (typeof value === 'string') {
-    const num = parseFloat(value);
-    return !isNaN(num);
+  if (typeof value === 'string' && value.trim() !== '') {
+    return !Number.isNaN(Number(value));
   }
 
   return false;
 }
 
-/**
- * Проверить, является ли число положительным
- * @param value - значение для проверки
- * @returns boolean - true если число положительное
- */
 export function isPositiveNumber(value: unknown): boolean {
   if (!isNumber(value)) {
     return false;
   }
 
-  const num = typeof value === 'string' ? parseFloat(value) : (value as number);
+  const num = typeof value === 'string' ? Number(value) : value;
   return num > 0;
 }
