@@ -5,25 +5,15 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": "./src",
-    "paths": {
-      "@core/*": ["core/*"],
-      "@types/*": ["types/*"],
-      "@modules/*": ["modules/*"],
-      "@services/*": ["services/*"]
-    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
     "sourceMap": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
     "noImplicitAny": false,
     "noImplicitReturns": false,
     "noUnusedLocals": false,
@@ -32,12 +22,17 @@
     "strictPropertyInitialization": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/index.ts",
+    "src/core/logger.ts",
+    "src/core/utils/logger.ts",
+    "src/core/services/prisma.service.ts",
+    "src/core/services/user.service.ts"
+  ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts",
-    "src/modules/problem/example-usage.ts"
+    "**/*.spec.ts"
   ]
 }
