@@ -45,4 +45,4 @@ RUN mkdir -p /app/output && chown -R botuser:nodejs /app/output
 USER botuser
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js 2>&1 || echo EXIT_CODE=$?; sleep 30"]
