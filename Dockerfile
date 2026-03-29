@@ -1,49 +1,17 @@
-# ============================================
-# cache-bust: v2
-# RentierGuard - Multi-stage Dockerfile
-# ============================================
+FROM node:18-alpine
 
-# Stage 1: Build
-FROM node:18-alpine AS builder
-
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma/
-
-# Install ALL dependencies (including dev) for build
 RUN npm install
-
-# Generate Prisma client
 RUN npx prisma generate
 
-# Copy source code
 COPY . .
-
-# Build TypeScript
 RUN npm run build
 
-# Stage 2: Production
-FROM node:18-alpine AS runner
+ENV NODE_ENV=production
 
-RUN apk add --no-cache openssl dumb-init
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 botuser
-
-WORKDIR /app
-
-COPY --from=builder --chown=botuser:nodejs /app/dist ./dist
-COPY --from=builder --chown=botuser:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=botuser:nodejs /app/package*.json ./
-COPY --from=builder --chown=botuser:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=botuser:nodejs /app/assets ./assets
-
-RUN mkdir -p /app/output && chown -R botuser:nodejs /app/output
-
-USER botuser
-
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy; echo '=== STARTING NODE ==='; node dist/index.js; echo '=== NODE EXITED WITH CODE '$?' ==='; sleep 120"]
+CMD node dist/index.js
